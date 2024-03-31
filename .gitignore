@@ -159,3 +159,4 @@ cython_debug/
 #  opt ion (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 env
+.vscode/
