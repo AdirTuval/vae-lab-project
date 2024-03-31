@@ -1,5 +1,4 @@
-from simple_image_generator.distributions.base_distribution import baseDist
-
+from shapes_dataset_generator.shapes_dataset_generator.greeting import greeting
 
 if __name__ == "__main__":
-    print(f"baseDist: {baseDist}")
+    greeting("world")
