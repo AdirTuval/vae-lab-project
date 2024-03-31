@@ -1,0 +1,3 @@
+[submodule "shapes_dataset_generator"]
+	path = shapes_dataset_generator
+	url = https://github.com/AdirTuval/shapes_dataset_generator
