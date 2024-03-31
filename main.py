@@ -1,4 +1,4 @@
-from shapes_dataset_generator.shapes_dataset_generator.greeting import greeting
+from shapes_dataset_generator import ShapesDatasetGenerator
 
 if __name__ == "__main__":
-    greeting("world")
+    print(type(ShapesDatasetGenerator))
