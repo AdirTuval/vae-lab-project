@@ -1,0 +1,18 @@
+[project]
+name = "vae-lab-project"
+version = "0.0.1"
+authors = [
+    {name="Adir Tuval", email="AdirTuval@gmail.com"}
+]
+description = "Lab Project for Uni"
+readme = {file = "README.md", content-type = "text/x-rst"}
+requires-python = ">=3"
+dependencies = []
+license = {text = "MIT License"}
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+]
+
+[project.urls]
+repository = "https://github.com/AdirTuval/vae-lab-project"
