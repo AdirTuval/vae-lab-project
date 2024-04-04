@@ -1,0 +1,27 @@
+manual_seed: 1265
+
+architecture_params:
+  in_channels: 3
+  latent_dim: 128
+  hidden_dims: [8, 16, 32, 64]
+
+opt_params:
+  LR: 0.005
+  weight_decay: 0.0
+  scheduler_gamma: 0.95
+  kld_weight: 0.00025
+
+data_params:
+  data_path: "/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/shapes_32x32_10000.npy"
+  train_batch_size: 8
+  n_samples: 10000
+
+trainer_params:
+  devices: 1
+  accelerator: "cpu"
+  max_epochs: 100
+
+logging_params:
+  save_dir: "logs/"
+  name: "VanillaVAE"
+  
