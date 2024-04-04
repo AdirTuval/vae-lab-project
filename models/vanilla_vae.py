@@ -1,11 +1,11 @@
 import torch
-from models import BaseVAE
 from torch import nn
 from torch.nn import functional as F
-from .types_ import *
+from torch import tensor as Tensor
+from typing import List
 
 
-class VanillaVAE(BaseVAE):
+class VanillaVAE(nn.Module):
 
     def __init__(
         self, in_channels: int, latent_dim: int, hidden_dims: List = None, **kwargs
@@ -36,7 +36,9 @@ class VanillaVAE(BaseVAE):
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1] * 4, latent_dim)
+        self.fc_mu = nn.Linear(
+            hidden_dims[-1] * 4, latent_dim
+        )  # 4 beacuse of the we assume the shape now is hidden_dims[-1] x 2 x 2
         self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
 
         # Build Decoder
@@ -104,7 +106,9 @@ class VanillaVAE(BaseVAE):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, 512, 2, 2)
+        result = result.view(
+            len(result), -1, 2, 2
+        )  # Going back to the shape of the (N x hidden_dims[-1] x 2 x 2)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result

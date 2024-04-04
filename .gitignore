@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 env
 .vscode/
+_main.py
+**lightning_logs/

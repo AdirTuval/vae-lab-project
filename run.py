@@ -1,13 +1,14 @@
+from arg_parser import parse_config
 from experiment import LightningVAE
 from models import VanillaVAE
-import lightning as L
-from shapes_dataset_generator import ShapesDatasetGenerator
-
+from lightning.pytorch import Trainer, seed_everything
+from dataset import ShapesDataModule
 if __name__ == "__main__":
-    print("hello")
-    model = LightningVAE(VanillaVAE(in_channels=3, latent_dim=128))
-    dataset, _ = ShapesDatasetGenerator(
-        random_seed=42, render_config=None
-    ).generate(n_samples=10000)
-    trainer = L.Trainer(max_epochs=1, limit_train_batches=100)
-    trainer.fit(model, dataset)
+    config = parse_config()
+    seed_everything(config['manual_seed'], workers=True)
+    model = LightningVAE(VanillaVAE(**config['architecture_params']), params=config['opt_params'])
+    data = ShapesDataModule(**config['data_params'])
+    data.setup()
+
+    trainer = Trainer(**config['trainer_params'])
+    trainer.fit(model, datamodule=data)
