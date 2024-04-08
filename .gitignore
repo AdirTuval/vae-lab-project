@@ -162,3 +162,5 @@ env
 .vscode/
 _main.py
 **lightning_logs/
+lab_project
+wandb

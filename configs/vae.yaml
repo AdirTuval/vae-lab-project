@@ -15,13 +15,16 @@ data_params:
   data_path: "/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/shapes_32x32_10000.npy"
   train_batch_size: 8
   n_samples: 10000
+  num_workers: 1
 
 trainer_params:
   devices: 1
-  accelerator: "cpu"
+  accelerator: "gpu"
   max_epochs: 100
 
 logging_params:
-  save_dir: "logs/"
-  name: "VanillaVAE"
+  name: wandb
+  project: "lab_project"
+  log_model: "all"
+  
   

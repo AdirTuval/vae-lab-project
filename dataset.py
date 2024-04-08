@@ -51,12 +51,14 @@ class ShapesDataModule(L.LightningDataModule):
         data_path: Union[str, None],
         train_batch_size: int = 8,
         generate: bool = False,
+        num_workers: int = 4,
         **kwargs
     ):
         super().__init__()
         self.train_batch_size = train_batch_size
         self.data_path = data_path
         self.generate = generate
+        self.num_workers = num_workers
 
     def setup(self, stage: Optional[str] = None) -> None:
         train_transforms = None
@@ -65,4 +67,4 @@ class ShapesDataModule(L.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.train_batch_size)
+        return DataLoader(self.train_dataset, batch_size=self.train_batch_size, num_workers=self.num_workers)

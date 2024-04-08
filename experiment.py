@@ -8,9 +8,9 @@ class LightningVAE(L.LightningModule):
 
     def __init__(self, vae_model: VanillaVAE, params: dict) -> None:
         super(LightningVAE, self).__init__()
-
         self.model = vae_model
         self.params = params
+        self.save_hyperparameters(ignore=['vae_model'])
 
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
@@ -22,9 +22,9 @@ class LightningVAE(L.LightningModule):
             M_N=self.params["kld_weight"],  # al_img.shape[0]/ self.num_train_imgs,
         )
 
-        self.log_dict(
-            {key: val.item() for key, val in train_loss.items()}, sync_dist=True
-        )
+        # Log 
+        self.log("Train/ELBO_Loss", train_loss["loss"])
+        self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"])
 
         return train_loss["loss"]
 
