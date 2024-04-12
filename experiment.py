@@ -2,6 +2,7 @@ from torch import optim
 from models import VanillaVAE
 from torch import tensor as Tensor
 import lightning as L
+from metrics.mcc import mcc
 
 
 class LightningVAE(L.LightningModule):
@@ -16,15 +17,17 @@ class LightningVAE(L.LightningModule):
         return self.model(input, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        results = self.forward(batch)
+        samples, sources = batch
+        results = self.forward(samples)
         train_loss = self.model.loss_function(
-            *results,
+            **results,
             M_N=self.params["kld_weight"],  # al_img.shape[0]/ self.num_train_imgs,
         )
 
         # Log 
         self.log("Train/ELBO_Loss", train_loss["loss"])
         self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"])
+        self.log("Train/Mean_Correlation_Coefficient", self._calculate_mcc(results['latents'], sources))
 
         return train_loss["loss"]
 
@@ -81,6 +84,12 @@ class LightningVAE(L.LightningModule):
     #         )
     #     except Warning:
     #         pass
+
+    def _calculate_mcc(self, latents, sources):
+        latents_copy = latents.detach().permute(1, 0).numpy()
+        sources_copy = sources.detach().permute(1, 0).numpy()
+        mcc_for_batch, _, _, _ = mcc(latents_copy, sources_copy)
+        return mcc_for_batch
 
     def configure_optimizers(self):
 

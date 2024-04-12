@@ -11,25 +11,21 @@ class ShapesDataset(Dataset):
     A PyTorch Dataset class for the shapes dataset.
     """
 
-    def __init__(
-        self, data_path: Union[str, None], split: str, transform=None, generate=False
-    ):
+    def __init__(self, shapes_path: str, sources_path: str, split: str, transform=None):
         assert split in ["train", "val", "test"]
-        assert data_path is not None or generate
         self.transforms = transform
-        if generate:
-            self.data = ShapesDatasetGenerator().generate(n_samples=10000)
-        if data_path is not None:
-            self.data = np.load(data_path)
+        self.sources = np.load(sources_path)
 
         # Set right order of dimensions
-        self.data = np.transpose(self.data, (0, 3, 1, 2))    
+        self.shapes = np.load(shapes_path)
+        self.shapes = np.transpose(self.shapes, (0, 3, 1, 2))
 
     def __len__(self):
-        return len(self.data)
+        return len(self.shapes)
 
     def __getitem__(self, idx):
-        sample = self.data[idx]
+        sample = self.shapes[idx]
+        source = self.sources[idx]
 
         # Convert the sample to PyTorch tensor if needed
         sample = torch.from_numpy(sample).float() / 255.0
@@ -38,7 +34,7 @@ class ShapesDataset(Dataset):
         if self.transforms:
             sample = self.transforms(sample)
 
-        return sample
+        return sample, source
 
 
 class ShapesDataModule(L.LightningDataModule):
@@ -48,23 +44,28 @@ class ShapesDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_path: Union[str, None],
+        shapes_path: str,
+        sources_path: str,
         train_batch_size: int = 8,
-        generate: bool = False,
         num_workers: int = 4,
         **kwargs
     ):
         super().__init__()
         self.train_batch_size = train_batch_size
-        self.data_path = data_path
-        self.generate = generate
+        self.shapes_path = shapes_path
+        self.sources_path = sources_path
         self.num_workers = num_workers
 
     def setup(self, stage: Optional[str] = None) -> None:
-        train_transforms = None
         self.train_dataset = ShapesDataset(
-            data_path=self.data_path, split="train", generate=self.generate
+            shapes_path=self.shapes_path,
+            sources_path=self.sources_path,
+            split="train",
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.train_batch_size, num_workers=self.num_workers)
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.train_batch_size,
+            num_workers=self.num_workers,
+        )

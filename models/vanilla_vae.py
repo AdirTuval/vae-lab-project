@@ -128,7 +128,14 @@ class VanillaVAE(nn.Module):
     def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
-        return [self.decode(z), input, mu, log_var]
+        return {
+            "recons": self.decode(z),
+            "mu": mu,
+            "log_var": log_var,
+            "input": input,
+            "latents" : z
+        }
+        # return [self.decode(z), input, mu, log_var, z]
 
     def loss_function(self, *args, **kwargs) -> dict:
         """
@@ -138,10 +145,10 @@ class VanillaVAE(nn.Module):
         :param kwargs:
         :return:
         """
-        recons = args[0]
-        input = args[1]
-        mu = args[2]
-        log_var = args[3]
+        recons = kwargs["recons"] 
+        mu = kwargs["mu"] 
+        log_var = kwargs["log_var"] 
+        input = kwargs["input"]
 
         kld_weight = kwargs["M_N"]  # Account for the minibatch samples from the dataset
         recons_loss = F.mse_loss(recons, input)
