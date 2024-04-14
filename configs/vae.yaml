@@ -17,6 +17,8 @@ data_params:
   train_batch_size: 64
   n_samples: 10000
   num_workers: 1
+  train_ratio: 0.8
+  val_ratio: 0.2
 
 trainer_params:
   devices: 1
@@ -24,7 +26,7 @@ trainer_params:
   max_epochs: 100
 
 logging_params:
-  name:
+  name: wandb
   project: "lab_project"
   log_model: "all"
   

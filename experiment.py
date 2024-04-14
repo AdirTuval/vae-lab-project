@@ -32,22 +32,18 @@ class LightningVAE(L.LightningModule):
         return train_loss["loss"]
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
-        pass
-        # real_img, labels = batch
-        # self.curr_device = real_img.device
+        samples, sources = batch
+        results = self.forward(samples)
+        train_loss = self.model.loss_function(
+            **results,
+            M_N=self.params["kld_weight"],  # al_img.shape[0]/ self.num_train_imgs,
+        )
 
-        # results = self.forward(real_img, labels=labels)
-        # val_loss = self.model.loss_function(
-        #     *results,
-        #     M_N=1.0,  # real_img.shape[0]/ self.num_val_imgs,
-        #     optimizer_idx=optimizer_idx,
-        #     batch_idx=batch_idx
-        # )
-
-        # self.log_dict(
-        #     {f"val_{key}": val.item() for key, val in val_loss.items()}, sync_dist=True
-        # )
-
+        # Log 
+        self.log("Validation/ELBO_Loss", train_loss["loss"])
+        self.log("Validation/Reconstruction_Loss", train_loss["Reconstruction_Loss"])
+        self.log("Validation/Mean_Correlation_Coefficient", self._calculate_mcc(results['latents'], sources))
+        
     # def on_validation_end(self) -> None:
     #     self.sample_images()
 
