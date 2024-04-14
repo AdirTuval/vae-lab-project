@@ -1,22 +1,25 @@
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torch import tensor as Tensor
-from typing import List
 
 
 class VanillaVAE(nn.Module):
 
     def __init__(
-        self, in_channels: int, latent_dim: int, hidden_dims: List = None, **kwargs
+        self, in_channels: int, latent_dim: int, hidden_dims: list, **kwargs
     ) -> None:
         super(VanillaVAE, self).__init__()
 
         self.latent_dim = latent_dim
+        self.latent_mapping = None
 
         modules = []
-        if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512]
+        hidden_dims = sorted(
+            hidden_dims
+        )  # Fix bug in reading hidden_dims from checkpoint file
+        print("Hidden dims: ", hidden_dims)
 
         # Build Encoder
         for h_dim in hidden_dims:
@@ -81,7 +84,7 @@ class VanillaVAE(nn.Module):
             nn.Tanh(),
         )
 
-    def encode(self, input: Tensor) -> List[Tensor]:
+    def encode(self, input: Tensor) -> list[Tensor]:
         """
         Encodes the input by passing through the encoder network
         and returns the latent codes.
@@ -125,7 +128,7 @@ class VanillaVAE(nn.Module):
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
+    def forward(self, input: Tensor, **kwargs) -> list[Tensor]:
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
         return {
@@ -133,7 +136,7 @@ class VanillaVAE(nn.Module):
             "mu": mu,
             "log_var": log_var,
             "input": input,
-            "latents" : z
+            "latents": z,
         }
         # return [self.decode(z), input, mu, log_var, z]
 
@@ -145,9 +148,9 @@ class VanillaVAE(nn.Module):
         :param kwargs:
         :return:
         """
-        recons = kwargs["recons"] 
-        mu = kwargs["mu"] 
-        log_var = kwargs["log_var"] 
+        recons = kwargs["recons"]
+        mu = kwargs["mu"]
+        log_var = kwargs["log_var"]
         input = kwargs["input"]
 
         kld_weight = kwargs["M_N"]  # Account for the minibatch samples from the dataset
@@ -163,21 +166,6 @@ class VanillaVAE(nn.Module):
             "Reconstruction_Loss": recons_loss.detach(),
             "KLD": -kld_loss.detach(),
         }
-
-    def sample(self, num_samples: int, current_device: int, **kwargs) -> Tensor:
-        """
-        Samples from the latent space and return the corresponding
-        image space map.
-        :param num_samples: (Int) Number of samples
-        :param current_device: (Int) Device to run the model
-        :return: (Tensor)
-        """
-        z = torch.randn(num_samples, self.latent_dim)
-
-        z = z.to(current_device)
-
-        samples = self.decode(z)
-        return samples
 
     def generate(self, x: Tensor, **kwargs) -> Tensor:
         """

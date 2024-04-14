@@ -1,33 +1,25 @@
-manual_seed: 1265
-
-architecture_params:
+seed_everything: 1265
+offline_run: False
+model:
   in_channels: 3
   latent_dim: 2
-  hidden_dims: [8, 16, 32, 64]
-
-opt_params:
-  LR: 0.005
-  weight_decay: 0.0
+  hidden_dims: [4, 8, 16, 32]
+  learning_rate: 0.005
   scheduler_gamma: 0.95
   kld_weight: 0.00025
 
-data_params:
+data:
   shapes_path: "data/shapes_32x32_10000.npy"
   sources_path: "data/sources_10000_d=2.npy"
   train_batch_size: 64
-  n_samples: 10000
   num_workers: 1
   train_ratio: 0.8
   val_ratio: 0.2
 
-trainer_params:
+trainer:
   devices: 1
-  accelerator: "cpu"
+  accelerator: "gpu"
   max_epochs: 100
-
-logging_params:
-  name: wandb
-  project: "lab_project"
-  log_model: "all"
+  logger: lightning.pytorch.loggers.WandbLogger
   
   

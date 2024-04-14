@@ -1,5 +1,5 @@
 import numpy as np
-from munkres import Munkres
+from .munkres import Munkres
 
 
 def mcc(x : np.array, y : np.array) -> tuple:
@@ -36,8 +36,7 @@ def mcc(x : np.array, y : np.array) -> tuple:
     corr_sort = corr_sort[0:dim, dim:]
 
     # return corr_sort, sort_idx, x_sort
-    mcc = np.mean(np.abs(np.diag(corr_sort)))
-    return mcc, corr_sort, sort_idx, x_sort
+    return corr_sort, sort_idx, x_sort
 
 # x1 = 2 * y2
 
