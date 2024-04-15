@@ -62,7 +62,7 @@ class VanillaVAE(nn.Module):
                         padding=1,
                         output_padding=1,
                     ),
-                    nn.BatchNorm2d(hidden_dims[i + 1]),
+                    nn.BatchNorm2d(hidden_dims[i + 1], track_running_stats=False),
                     nn.LeakyReLU(),
                 )
             )
@@ -78,7 +78,7 @@ class VanillaVAE(nn.Module):
                 padding=1,
                 output_padding=1,
             ),
-            nn.BatchNorm2d(hidden_dims[-1]),
+            nn.BatchNorm2d(hidden_dims[-1], track_running_stats=False),
             nn.LeakyReLU(),
             nn.Conv2d(hidden_dims[-1], out_channels=3, kernel_size=3, padding=1),
             nn.Tanh(),

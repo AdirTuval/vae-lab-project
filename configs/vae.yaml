@@ -7,7 +7,7 @@ model:
   hidden_dims: [2, 4, 8, 16]
   learning_rate: 0.005
   scheduler_gamma: 0.95
-  kld_weight: 0.00025
+  kld_weight: 0.0025
   n_samples_to_log_in_val: 5
 
 data:
@@ -17,16 +17,17 @@ data:
   num_workers: 1
   train_ratio: 0.8
   val_ratio: 0.2
+  train_batch_shuffle: True
 
 trainer:
-  devices: 1
-  accelerator: "gpu"
+  devices: "auto"
+  accelerator: "cpu"
   max_epochs: 100
   logger: lightning.pytorch.loggers.WandbLogger
 
-# early_stopping:
-#   monitor: "Validation/ELBO_Loss"
-#   mode: "min"
-#   patience: 5
+early_stopping:
+  monitor: "Validation/ELBO_Loss"
+  mode: "min"
+  patience: 5
   
   

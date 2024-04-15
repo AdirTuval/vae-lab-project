@@ -1,5 +1,5 @@
-from pytorch_lightning.cli import LightningCLI
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch.cli import LightningCLI
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from dataset import ShapesDataModule
 from experiment import LightningVAE
 
@@ -8,8 +8,7 @@ class MyLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         super().add_arguments_to_parser(parser)
         parser.add_argument("offline_run", default=False)
-        # parser.add_lightning_class_args(ModelCheckpoint, "model_checkpoint")
-        # parser.set_defaults({"my_early_stopping.monitor": "val_loss", "my_early_stopping.patience": 5})
+        parser.add_lightning_class_args(EarlyStopping, "early_stopping")
 
     def before_instantiate_classes(self) -> None:
         super().before_instantiate_classes()
@@ -22,6 +21,7 @@ def cli_main():
         LightningVAE,
         ShapesDataModule,
         seed_everything_default=True,
+        save_config_callback=None,
         trainer_defaults={
             "callbacks": [
                 ModelCheckpoint(

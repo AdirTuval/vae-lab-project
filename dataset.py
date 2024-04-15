@@ -46,6 +46,7 @@ class ShapesDataModule(L.LightningDataModule):
         num_workers: int = 4,
         train_ratio: float = 0.8,
         val_ratio: float = 0.1,
+        train_batch_shuffle : bool = True,
         **kwargs
     ):
         super().__init__()
@@ -55,6 +56,7 @@ class ShapesDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.train_ratio = train_ratio
         self.val_ratio = val_ratio
+        self.train_batch_shuffle = train_batch_shuffle
 
     def setup(self, stage: Optional[str] = None) -> None:
         # Load shapes and sources
@@ -75,6 +77,7 @@ class ShapesDataModule(L.LightningDataModule):
             self.train_dataset,
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
+            shuffle=self.train_batch_shuffle
         )
 
     def val_dataloader(self):
