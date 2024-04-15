@@ -1,16 +1,18 @@
 seed_everything: 1265
 offline_run: False
+
 model:
   in_channels: 3
   latent_dim: 2
-  hidden_dims: [4, 8, 16, 32]
+  hidden_dims: [2, 4, 8, 16]
   learning_rate: 0.005
   scheduler_gamma: 0.95
   kld_weight: 0.00025
+  n_samples_to_log_in_val: 5
 
 data:
-  shapes_path: "data/shapes_32x32_10000.npy"
-  sources_path: "data/sources_10000_d=2.npy"
+  shapes_path: "data/shapes_32x32_60000.npy"
+  sources_path: "data/sources_60000_d=2.npy"
   train_batch_size: 64
   num_workers: 1
   train_ratio: 0.8
@@ -21,5 +23,10 @@ trainer:
   accelerator: "gpu"
   max_epochs: 100
   logger: lightning.pytorch.loggers.WandbLogger
+
+# early_stopping:
+#   monitor: "Validation/ELBO_Loss"
+#   mode: "min"
+#   patience: 5
   
   

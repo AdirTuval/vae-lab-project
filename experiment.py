@@ -17,6 +17,7 @@ class LightningVAE(L.LightningModule):
         learning_rate: float,
         scheduler_gamma: float,
         kld_weight: float,
+        n_samples_to_log_in_val: int,
     ) -> None:
         super(LightningVAE, self).__init__()
         self.model = VanillaVAE(
@@ -26,7 +27,7 @@ class LightningVAE(L.LightningModule):
         self.learning_rate = learning_rate
         self.scheduler_gamma = scheduler_gamma
         self.validation_step_outputs = []
-        self.latent_mapping = None
+        self.n_samples_to_log_in_val = n_samples_to_log_in_val
 
         self.save_hyperparameters()
 
@@ -59,51 +60,64 @@ class LightningVAE(L.LightningModule):
         self.log("Validation/ELBO_Loss", val_loss["loss"])
         self.log("Validation/Reconstruction_Loss", val_loss["Reconstruction_Loss"])
         self._log_mcc("Validation", results["latents"], sources)
+        self.validation_step_outputs.append(
+            (
+                results["input"].detach().permute(0, 3, 2, 1).cpu().numpy(),
+                results["recons"].detach().permute(0, 3, 2, 1).cpu().numpy(),
+            )
+        )
 
     def _log_mcc(self, prefix, latents, sources):
-        curr_mcc, latents_sorted = self._calculate_mcc(latents, sources)
+        curr_mcc, _ = self._calculate_mcc(latents, sources)
         self.log(f"{prefix}/Mean_Correlation_Coefficient", curr_mcc)
 
-        if prefix == "Validation":
-            self.validation_step_outputs.append(
-                (
-                    latents_sorted,
-                    sources.detach().cpu().permute(1, 0).numpy(),
-                )
-            )
-
     def on_validation_epoch_end(self) -> None:
-        self.learn_latent_mapping()
-        images, latents = self.sample_base_images()
-        self._log_images(images, latents)
+        if len(self.validation_step_outputs) < 8:
+            # Avoid logging on the sanity check
+            return
+        inputs, recons = self.validation_step_outputs[-1] # Get last batch
+        inputs = inputs[:self.n_samples_to_log_in_val]
+        recons = recons[:self.n_samples_to_log_in_val]
+        images_to_log = self._get_images_to_log(inputs, recons)
+        self._log_images(images_to_log)
 
-    def learn_latent_mapping(self) -> Tensor:
-        latents, sources = zip(*self.validation_step_outputs)
-        latents = np.hstack(latents)
-        sources = np.hstack(sources)
-        a0, b0 = np.polyfit(sources[0, :], latents[0, :], 1)
-        a1, b1 = np.polyfit(sources[1, :], latents[1, :], 1)
-        self.latent_mapping = lambda t: t * np.array([a0, a1]) + np.array([b0, b1])
-        self.validation_step_outputs = []
+    def _get_images_to_log(self, inputs, recons):
+        height = inputs[0].shape[1]
+        n_samples = len(inputs)
+        separators = np.zeros((n_samples, height, 1, 3))
+        separators[:, :, :, 0] = 1 # Red separator
+        triplets = list(zip(inputs, separators , recons))
+        images = [np.hstack(triplet) for triplet in triplets]
+        images = [np.pad(im, ((1, 1),(1, 1), (0, 0))) for im in images]
+        return images
+    
+    # def learn_latent_mapping(self) -> Tensor:
+    #     latents, sources = zip(*self.validation_step_outputs)
+    #     latents = np.hstack(latents)
+    #     sources = np.hstack(sources)
+    #     a0, b0 = np.polyfit(sources[0, :], latents[0, :], 1)
+    #     a1, b1 = np.polyfit(sources[1, :], latents[1, :], 1)
+    #     self.latent_mapping = lambda t: t * np.array([a0, a1]) + np.array([b0, b1])
+    #     self.validation_step_outputs = []
 
-    def sample_base_images(self) -> list[Tensor]:
-        mapped_latents, original_latents = self.get_base_latents()
-        base_images = self.model.decode(mapped_latents)
-        return base_images, original_latents
+    # def sample_base_images(self) -> list[Tensor]:
+    #     mapped_latents, original_latents = self.get_base_latents()
+    #     base_images = self.model.decode(mapped_latents)
+    #     return base_images, original_latents
 
-    def _log_images(self, images, latents):
-        images = list(images.detach().cpu().permute(0, 2, 3, 1).numpy())
+    def _log_images(self, images):
         self.logger.log_image(
             key="Validation/Latents_Samples",
             images=list(images),
-            step=self.current_epoch,
-            caption=["Latent: " + str(latent) for latent in latents],
+            step=self.current_epoch
         )
 
     def get_base_latents(self):
         x, y = torch.meshgrid(*(2 * [torch.arange(0, 1.001, 0.5)]), indexing="ij")
         base_latents = torch.stack((x.flatten(), y.flatten()), dim=-1)
-        base_latents_after_mapping = self.latent_mapping(base_latents).to(self.device).type(torch.float32)
+        base_latents_after_mapping = (
+            self.latent_mapping(base_latents).to(self.device).type(torch.float32)
+        )
         return base_latents_after_mapping, base_latents
 
     def _calculate_mcc(self, latents, sources):
