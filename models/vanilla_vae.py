@@ -1,8 +1,8 @@
-import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torch import tensor as Tensor
+from torch.func import jacfwd, vmap
 
 
 class VanillaVAE(nn.Module):
@@ -16,7 +16,7 @@ class VanillaVAE(nn.Module):
         self.latent_mapping = None
 
         modules = []
-        hidden_dims = sorted(
+        self.hidden_dims = sorted(
             hidden_dims
         )  # Fix bug in reading hidden_dims from checkpoint file
         print("Hidden dims: ", hidden_dims)
@@ -110,7 +110,7 @@ class VanillaVAE(nn.Module):
         """
         result = self.decoder_input(z)
         result = result.view(
-            len(result), -1, 2, 2
+            -1, self.hidden_dims[-1], 2, 2
         )  # Going back to the shape of the (N x hidden_dims[-1] x 2 x 2)
         result = self.decoder(result)
         result = self.final_layer(result)
@@ -175,3 +175,15 @@ class VanillaVAE(nn.Module):
         """
 
         return self.forward(x)[0]
+    
+    def calculate_decoder_jacobian(self, z: Tensor):
+        """
+        Calculates the Jacobian of the decoder w.r.t. the latent code z.
+        :param z: (Tensor) [B x D]
+        :return: (Tensor) [B x D x (C*H*W)]
+        """
+        # Flatten decoder:
+        def flatten_decoder(x):
+            return self.decode(x).flatten()
+        
+        return vmap(jacfwd(flatten_decoder))(z)

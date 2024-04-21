@@ -1,5 +1,5 @@
 import numpy as np
-from .munkres import Munkres
+from .utils.munkres import Munkres
 
 
 def mcc(x : np.array, y : np.array) -> tuple:

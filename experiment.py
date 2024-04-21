@@ -4,7 +4,7 @@ from torch import optim
 from models import VanillaVAE
 from torch import tensor as Tensor
 import lightning as L
-from metrics.mcc import mcc
+from metrics import mcc, cima_kl_diagonality
 
 
 class LightningVAE(L.LightningModule):
@@ -60,6 +60,7 @@ class LightningVAE(L.LightningModule):
         self.log("Validation/ELBO_Loss", val_loss["loss"])
         self.log("Validation/Reconstruction_Loss", val_loss["Reconstruction_Loss"])
         self._log_mcc("Validation", results["latents"], sources)
+        self._log_cima("Validation", results["latents"])
         self.validation_step_outputs.append(
             (
                 results["input"].detach().permute(0, 3, 2, 1).cpu().numpy(),
@@ -70,6 +71,12 @@ class LightningVAE(L.LightningModule):
     def _log_mcc(self, prefix, latents, sources):
         curr_mcc, _ = self._calculate_mcc(latents, sources)
         self.log(f"{prefix}/Mean_Correlation_Coefficient", curr_mcc)
+
+    def _log_cima(self, prefix, latents):
+        jacobian = self.model.calculate_decoder_jacobian(latents)
+        jacobian = jacobian.mean(0)
+        cima = cima_kl_diagonality(jacobian)
+        self.log(f"{prefix}/CIMA", cima)
 
     def on_validation_epoch_end(self) -> None:
         if len(self.validation_step_outputs) < 8:
@@ -106,11 +113,17 @@ class LightningVAE(L.LightningModule):
     #     return base_images, original_latents
 
     def _log_images(self, images):
+        if not self.is_wandb_logger():
+            return
+        
         self.logger.log_image(
             key="Validation/Latents_Samples",
             images=list(images),
             step=self.current_epoch
         )
+    
+    def is_wandb_logger(self):
+        return "Wandb" in str(type(self.logger))
 
     def get_base_latents(self):
         x, y = torch.meshgrid(*(2 * [torch.arange(0, 1.001, 0.5)]), indexing="ij")
