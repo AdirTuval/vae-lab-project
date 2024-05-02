@@ -8,7 +8,6 @@ from metrics import mcc, cima_kl_diagonality
 
 
 class LightningVAE(L.LightningModule):
-
     def __init__(
         self,
         in_channels: int,
@@ -23,12 +22,7 @@ class LightningVAE(L.LightningModule):
         self.model = VanillaVAE(
             in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims
         )
-        self.kld_weight = kld_weight
-        self.learning_rate = learning_rate
-        self.scheduler_gamma = scheduler_gamma
         self.validation_step_outputs = []
-        self.n_samples_to_log_in_val = n_samples_to_log_in_val
-
         self.save_hyperparameters()
 
     def forward(self, input: Tensor, **kwargs) -> Tensor:
@@ -39,7 +33,7 @@ class LightningVAE(L.LightningModule):
         results = self.forward(samples)
         train_loss = self.model.loss_function(
             **results,
-            M_N=self.kld_weight,  # al_img.shape[0]/ self.num_train_imgs,
+            M_N=self.hparams.kld_weight,  # al_img.shape[0]/ self.num_train_imgs,
         )
 
         # Log
@@ -53,12 +47,12 @@ class LightningVAE(L.LightningModule):
         results = self.forward(samples)
         val_loss = self.model.loss_function(
             **results,
-            M_N=self.kld_weight,  # al_img.shape[0]/ self.num_train_imgs,
+            M_N=self.hparams.kld_weight,  # al_img.shape[0]/ self.num_train_imgs,
         )
 
         # Log
-        self.log("Validation/ELBO_Loss", val_loss["loss"])
-        self.log("Validation/Reconstruction_Loss", val_loss["Reconstruction_Loss"])
+        self.log("Validation/ELBO_Loss", val_loss["loss"], sync_dist=True)
+        self.log("Validation/Reconstruction_Loss", val_loss["Reconstruction_Loss"], sync_dist=True)
         self._log_mcc("Validation", results["latents"], sources)
         self._log_cima("Validation", results["latents"])
         self.validation_step_outputs.append(
@@ -70,21 +64,21 @@ class LightningVAE(L.LightningModule):
 
     def _log_mcc(self, prefix, latents, sources):
         curr_mcc, _ = self._calculate_mcc(latents, sources)
-        self.log(f"{prefix}/Mean_Correlation_Coefficient", curr_mcc)
+        self.log(f"{prefix}/Mean_Correlation_Coefficient", curr_mcc, sync_dist=True)
 
     def _log_cima(self, prefix, latents):
         jacobian = self.model.calculate_decoder_jacobian(latents)
         jacobian = jacobian.mean(0)
         cima = cima_kl_diagonality(jacobian)
-        self.log(f"{prefix}/CIMA", cima)
+        self.log(f"{prefix}/CIMA", cima, sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
         if len(self.validation_step_outputs) < 8:
             # Avoid logging on the sanity check
             return
         inputs, recons = self.validation_step_outputs[-1] # Get last batch
-        inputs = inputs[:self.n_samples_to_log_in_val]
-        recons = recons[:self.n_samples_to_log_in_val]
+        inputs = inputs[:self.hparams.n_samples_to_log_in_val]
+        recons = recons[:self.hparams.n_samples_to_log_in_val]
         images_to_log = self._get_images_to_log(inputs, recons)
         self._log_images(images_to_log)
 
@@ -146,13 +140,13 @@ class LightningVAE(L.LightningModule):
 
         optimizer = optim.Adam(
             self.model.parameters(),
-            lr=self.learning_rate,
+            lr=self.hparams.learning_rate,
             # weight_decay=self.params["weight_decay"],
         )
         optims.append(optimizer)
 
         scheduler = optim.lr_scheduler.ExponentialLR(
-            optims[0], gamma=self.scheduler_gamma
+            optims[0], gamma=self.hparams.scheduler_gamma
         )
         scheds.append(scheduler)
 

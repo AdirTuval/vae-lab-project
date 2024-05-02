@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch import tensor as Tensor
-from torch.func import jacfwd, vmap
+from torch.func import jacfwd, jacrev, vmap
 
 
 class VanillaVAE(nn.Module):
@@ -16,9 +16,7 @@ class VanillaVAE(nn.Module):
         self.latent_mapping = None
 
         modules = []
-        self.hidden_dims = sorted(
-            hidden_dims
-        )  # Fix bug in reading hidden_dims from checkpoint file
+        self.last_hidden_dim = hidden_dims[-1]
         print("Hidden dims: ", hidden_dims)
 
         # Build Encoder
@@ -49,7 +47,7 @@ class VanillaVAE(nn.Module):
 
         self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
 
-        hidden_dims.reverse()
+        hidden_dims = hidden_dims[::-1]
 
         for i in range(len(hidden_dims) - 1):
             modules.append(
@@ -110,7 +108,7 @@ class VanillaVAE(nn.Module):
         """
         result = self.decoder_input(z)
         result = result.view(
-            -1, self.hidden_dims[-1], 2, 2
+            -1, self.last_hidden_dim, 2, 2
         )  # Going back to the shape of the (N x hidden_dims[-1] x 2 x 2)
         result = self.decoder(result)
         result = self.final_layer(result)

@@ -1,33 +1,48 @@
 seed_everything: 1265
-offline_run: False
 
 model:
   in_channels: 3
   latent_dim: 2
-  hidden_dims: [2, 4, 8, 16]
-  learning_rate: 0.005
+  hidden_dims: [4, 4, 8, 16]
+  learning_rate: 0.00005
   scheduler_gamma: 0.95
   kld_weight: 0.0025
   n_samples_to_log_in_val: 5
 
 data:
-  shapes_path: "data/shapes_32x32_60000.npy"
-  sources_path: "data/sources_60000_d=2.npy"
-  train_batch_size: 64
-  num_workers: 1
-  train_ratio: 0.8
-  val_ratio: 0.2
-  train_batch_shuffle: True
+  generate_data_on_the_fly: True
+  existing_data_path:
+    shapes: "data/shapes_32x32_60000.npy"
+    sources: "data/sources_60000_d=2.npy"
+  data_generation_params:
+    n_samples: 60000
+    render_config:
+      canvas_size: 32
+      anti_alias: 1
+      background_color: "white"
+  general_data_params:
+    train_batch_size: 64
+    num_workers: 2
+    train_ratio: 0.8
+    val_ratio: 0.2
+    train_batch_shuffle: True
 
 trainer:
   devices: "auto"
-  accelerator: "cpu"
+  accelerator: "gpu"
   max_epochs: 100
-  logger: lightning.pytorch.loggers.WandbLogger
+  strategy: "ddp"
+  num_sanity_val_steps: -1
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      log_model: all
+      project: "lab_vae"
 
 early_stopping:
   monitor: "Validation/ELBO_Loss"
   mode: "min"
   patience: 5
+  verbose: True
   
   

@@ -4,6 +4,8 @@ import numpy as np
 import lightning as L
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import random_split
+from shapes_dataset_generator import ShapesDatasetGenerator
+
 
 class ShapesDataset(Dataset):
     """
@@ -40,33 +42,33 @@ class ShapesDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        shapes_path: str,
-        sources_path: str,
-        train_batch_size: int = 8,
-        num_workers: int = 4,
-        train_ratio: float = 0.8,
-        val_ratio: float = 0.1,
-        train_batch_shuffle : bool = True,
+        generate_data_on_the_fly: bool,
+        existing_data_path: dict,
+        data_generation_params: dict,
+        general_data_params: dict,
         **kwargs
     ):
         super().__init__()
-        self.train_batch_size = train_batch_size
-        self.shapes_path = shapes_path
-        self.sources_path = sources_path
-        self.num_workers = num_workers
-        self.train_ratio = train_ratio
-        self.val_ratio = val_ratio
-        self.train_batch_shuffle = train_batch_shuffle
+        self.save_hyperparameters()
 
     def setup(self, stage: Optional[str] = None) -> None:
-        # Load shapes and sources
-        self.shapes = np.load(self.shapes_path)
-        self.sources = np.load(self.sources_path)
+        if self.hparams.generate_data_on_the_fly:
+            print("Generating data on the fly...")
+            self.shapes, self.sources = ShapesDatasetGenerator(
+                self.hparams.data_generation_params["render_config"]
+            ).generate(self.hparams.data_generation_params["n_samples"])
+            print("Data generated successfully!")
+        else:
+            shapes_path = self.hparams.existing_data_path["shapes"]
+            sources_path = self.hparams.existing_data_path["sources"]
+            self.shapes = np.load(shapes_path)
+            self.sources = np.load(sources_path)
+
         dataset = ShapesDataset(shapes=self.shapes, sources=self.sources)
-        
+
         # split
-        train_len = int(self.train_ratio * len(dataset))
-        val_len = int(self.val_ratio * len(dataset))
+        train_len = int(self.hparams.general_data_params["train_ratio"] * len(dataset))
+        val_len = int(self.hparams.general_data_params["val_ratio"] * len(dataset))
 
         self.train_dataset, self.val_dataset = random_split(
             dataset, [train_len, val_len]
@@ -75,14 +77,14 @@ class ShapesDataModule(L.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
-            batch_size=self.train_batch_size,
-            num_workers=self.num_workers,
-            shuffle=self.train_batch_shuffle
+            batch_size=self.hparams.general_data_params["train_batch_size"],
+            num_workers=self.hparams.general_data_params["num_workers"],
+            shuffle=self.hparams.general_data_params["train_batch_shuffle"]
         )
 
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
-            batch_size=self.train_batch_size,
-            num_workers=self.num_workers,
+            batch_size=self.hparams.general_data_params["train_batch_size"],
+            num_workers=self.hparams.general_data_params["num_workers"],
         )

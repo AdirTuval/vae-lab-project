@@ -2,6 +2,9 @@ from lightning.pytorch.cli import LightningCLI
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from dataset import ShapesDataModule
 from experiment import LightningVAE
+import torch
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 class MyLightningCLI(LightningCLI):
@@ -9,11 +12,6 @@ class MyLightningCLI(LightningCLI):
         super().add_arguments_to_parser(parser)
         parser.add_argument("offline_run", default=False)
         parser.add_lightning_class_args(EarlyStopping, "early_stopping")
-
-    def before_instantiate_classes(self) -> None:
-        super().before_instantiate_classes()
-        if self.config[self.subcommand].offline_run:
-            self.config[self.subcommand].trainer.logger = None
 
 
 def cli_main():
