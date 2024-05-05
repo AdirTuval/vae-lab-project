@@ -55,7 +55,8 @@ class ShapesDataModule(L.LightningDataModule):
         if self.hparams.generate_data_on_the_fly:
             print("Generating data on the fly...")
             self.shapes, self.sources = ShapesDatasetGenerator(
-                self.hparams.data_generation_params["render_config"]
+                self.hparams.data_generation_params["render_config"], 
+                self.hparams.data_generation_params["sampler_config"]
             ).generate(self.hparams.data_generation_params["n_samples"])
             print("Data generated successfully!")
         else:
