@@ -1,12 +1,11 @@
-seed_everything: 1265
-
 model:
+  seed: 43
   in_channels: 3
   latent_dim: 2
-  hidden_dims: [4, 4, 8, 16]
+  hidden_dims: [8, 16, 32, 64]
   learning_rate: 0.0005
   scheduler_gamma: 0.95
-  kld_weight: 0.0025
+  kld_weight: 0.00025
   n_samples_to_log_in_val: 5
 
 data:
@@ -19,7 +18,8 @@ data:
     render_config:
       canvas_size: 32
       anti_alias: 1
-      background_color: "white"
+      background_color: "black"
+      sample_color: "blue"
     sampler_config:
       type: "uniform"
       params: [0, 1]
@@ -42,10 +42,10 @@ trainer:
       log_model: all
       project: "lab_vae"
 
-early_stopping:
-  monitor: "Validation/ELBO_Loss"
-  mode: "min"
-  patience: 5
-  verbose: True
+# early_stopping:
+#   monitor: "Validation/ELBO_Loss"
+#   mode: "min"
+#   patience: 5
+#   verbose: True
   
   

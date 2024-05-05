@@ -17,6 +17,8 @@ class LightningVAE(L.LightningModule):
         scheduler_gamma: float,
         kld_weight: float,
         n_samples_to_log_in_val: int,
+        seed: int,
+        **kwargs
     ) -> None:
         super(LightningVAE, self).__init__()
         self.model = VanillaVAE(
@@ -24,6 +26,9 @@ class LightningVAE(L.LightningModule):
         )
         self.validation_step_outputs = []
         self.save_hyperparameters()
+
+    def on_fit_start(self) -> None:
+        L.seed_everything(self.hparams.seed)
 
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
@@ -40,6 +45,7 @@ class LightningVAE(L.LightningModule):
         self.log("Train/ELBO_Loss", train_loss["loss"], prog_bar=True)
         self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"])
         self._log_mcc("Train", results["latents"], sources)
+        self._log_cima("Train", results["latents"])
         return train_loss["loss"]
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):

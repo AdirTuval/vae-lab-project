@@ -11,21 +11,21 @@ class MyLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         super().add_arguments_to_parser(parser)
         parser.add_argument("offline_run", default=False)
-        parser.add_lightning_class_args(EarlyStopping, "early_stopping")
 
 
 def cli_main():
     cli = MyLightningCLI(
         LightningVAE,
         ShapesDataModule,
-        seed_everything_default=True,
         save_config_callback=None,
         trainer_defaults={
             "callbacks": [
                 ModelCheckpoint(
                     monitor="Validation/ELBO_Loss", save_top_k=1, mode="min"
                 )
-            ]
+            ],
+            "deterministic" : True
+            
         },
     )
 
