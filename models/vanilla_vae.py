@@ -3,6 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch import tensor as Tensor
 from torch.func import jacfwd, jacrev, vmap
+from metrics import calculate_mcc
+import numpy as np
 
 
 class VanillaVAE(nn.Module):
@@ -79,6 +81,7 @@ class VanillaVAE(nn.Module):
             nn.Conv2d(hidden_dims[-1], out_channels=3, kernel_size=3, padding=1),
             nn.Tanh(),
         )
+        self.latent_mapping = None
 
     def encode(self, input: Tensor) -> list[Tensor]:
         """
@@ -104,6 +107,9 @@ class VanillaVAE(nn.Module):
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x C x H x W]
         """
+        if self.latent_mapping is not None:
+            print("Using latent mapping")
+            z = self.latent_mapping(z)
         result = self.decoder_input(z)
         result = result.view(
             -1, self.last_hidden_dim, 2, 2
@@ -134,7 +140,6 @@ class VanillaVAE(nn.Module):
             "input": input,
             "latents": z,
         }
-        # return [self.decode(z), input, mu, log_var, z]
 
     def loss_function(self, *args, **kwargs) -> dict:
         """
@@ -183,3 +188,13 @@ class VanillaVAE(nn.Module):
             return self.decode(x).flatten()
         
         return vmap(jacfwd(flatten_decoder))(z)
+    
+    def learn_latent_mapping(self, sources, samples) -> Tensor:
+        latents = self.forward(samples)["latents"]
+        latents = latents.detach().cpu().numpy()
+        sources = sources.detach().cpu().numpy()
+        a0, b0 = np.polyfit(sources[0, :], latents[0, :], 1)
+        a1, b1 = np.polyfit(sources[1, :], latents[1, :], 1)
+        a = torch.Tensor([a0, a1]).cuda()
+        b = torch.Tensor([b0, b1]).cuda()
+        self.latent_mapping = lambda t: t * a + b

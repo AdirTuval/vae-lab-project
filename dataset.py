@@ -74,6 +74,9 @@ class ShapesDataModule(L.LightningDataModule):
         self.train_dataset, self.val_dataset = random_split(
             dataset, [train_len, val_len]
         )
+        if self.hparams.general_data_params["save_data"]:
+            np.save("/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/shapes.npy", self.shapes)
+            np.save("/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/sources.npy", self.sources)
 
     def train_dataloader(self):
         return DataLoader(

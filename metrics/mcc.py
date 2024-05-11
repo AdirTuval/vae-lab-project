@@ -2,7 +2,7 @@ import numpy as np
 from .utils.munkres import Munkres
 
 
-def mcc(x : np.array, y : np.array) -> tuple:
+def mcc(x: np.array, y: np.array) -> tuple:
     """Evaluate MCC
     Args:
         x: data to be sorted
@@ -38,7 +38,12 @@ def mcc(x : np.array, y : np.array) -> tuple:
     # return corr_sort, sort_idx, x_sort
     return corr_sort, sort_idx, x_sort
 
-# x1 = 2 * y2
+
+def calculate_mcc(latents, sources):
+    corr_sort, sort_idx, latents_sorted = mcc(latents, sources)
+    curr_mcc = np.mean(np.abs(np.diag(corr_sort)))
+    return curr_mcc, sort_idx, latents_sorted
+
 
 if __name__ == "__main__":
     rng = np.random.default_rng(seed=42)
