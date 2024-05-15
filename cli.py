@@ -14,6 +14,7 @@ class MyLightningCLI(LightningCLI):
 
 
 def cli_main():
+    torch.autograd.set_detect_anomaly(True)
     cli = MyLightningCLI(
         LightningVAE,
         ShapesDataModule,

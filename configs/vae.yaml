@@ -7,6 +7,7 @@ model:
   scheduler_gamma: 0.95
   kld_weight: 0.00025
   n_samples_to_log_in_val: 5
+  decoder_var: 1.0e-05
 
 data:
   generate_data_on_the_fly: True
@@ -14,7 +15,7 @@ data:
     shapes: "data/shapes_32x32_60000.npy"
     sources: "data/sources_60000_d=2.npy"
   data_generation_params:
-    n_samples: 200000
+    n_samples: 60000
     render_config:
       canvas_size: 32
       anti_alias: 1
@@ -32,17 +33,17 @@ data:
     save_data: False
 
 trainer:
-  devices: "auto"
+  devices: 1
   accelerator: "gpu"
   max_epochs: 100
   strategy: "ddp"
-  num_sanity_val_steps: -1
-  logger:
-    class_path: lightning.pytorch.loggers.WandbLogger
-    init_args:
-      log_model: all
-      project: "lab_vae"
-      tags: ["200k_samples"]
+  num_sanity_val_steps: 2
+  # logger:
+  #   class_path: lightning.pytorch.loggers.WandbLogger
+  #   init_args:
+  #     log_model: all
+  #     project: "lab_vae"
+  #     tags: ["200k_samples"]
 
 # early_stopping:
 #   monitor: "Validation/ELBO_Loss"

@@ -4,24 +4,32 @@ from torch.nn import functional as F
 from torch import tensor as Tensor
 from torch.func import jacfwd, jacrev, vmap
 from metrics import calculate_mcc
+from distributions import Normal, Uniform
 import numpy as np
 
 
 class VanillaVAE(nn.Module):
 
     def __init__(
-        self, in_channels: int, latent_dim: int, hidden_dims: list, **kwargs
+        self, in_channels: int, latent_dim: int, hidden_dims: list, decoder_var: float, **kwargs
     ) -> None:
         super(VanillaVAE, self).__init__()
-
+        self.decoder_var = decoder_var * torch.ones(1, dtype=torch.float64)
         self.latent_dim = latent_dim
         self.latent_mapping = None
+        self.init_nets(in_channels, latent_dim, hidden_dims)
+        self.init_distributions()
 
-        modules = []
+
+    def init_nets(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.last_hidden_dim = hidden_dims[-1]
         print("Hidden dims: ", hidden_dims)
-
+        self.init_encoder(in_channels, latent_dim, hidden_dims)
+        self.init_decoder(latent_dim, hidden_dims)
+    
+    def init_encoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
         # Build Encoder
+        modules = []
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
@@ -44,6 +52,7 @@ class VanillaVAE(nn.Module):
         )  # 4 beacuse of the we assume the shape now is hidden_dims[-1] x 2 x 2
         self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
 
+    def init_decoder(self, latent_dim: int, hidden_dims: list):
         # Build Decoder
         modules = []
 
@@ -81,7 +90,17 @@ class VanillaVAE(nn.Module):
             nn.Conv2d(hidden_dims[-1], out_channels=3, kernel_size=3, padding=1),
             nn.Tanh(),
         )
-        self.latent_mapping = None
+
+    def init_distributions(self):
+        self.prior = Uniform(low=0, high=1)
+        self.posterior = Normal()
+        self.likelihood = Normal()
+
+    def transfer_distribution_to_device(self, device):
+        self.prior = self.prior.to(device)
+        self.posterior = self.posterior.to(device)
+        self.likelihood = self.likelihood.to(device)
+        self.decoder_var = self.decoder_var.to(device)
 
     def encode(self, input: Tensor) -> list[Tensor]:
         """
@@ -128,7 +147,8 @@ class VanillaVAE(nn.Module):
         """
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        return eps * std + mu
+        latents = torch.sigmoid(eps * std + mu)
+        return latents
 
     def forward(self, input: Tensor, **kwargs) -> list[Tensor]:
         mu, log_var = self.encode(input)
@@ -168,6 +188,46 @@ class VanillaVAE(nn.Module):
             "KLD": -kld_loss.detach(),
         }
 
+    def neg_elbo(self, *args, **kwargs):
+        """
+        :param mean_latents:
+        :param x: observations
+        :param u: segment labels
+        :return:
+        """
+        encoding_mean = kwargs["mu"]
+        encoding_logvar = kwargs["log_var"]
+        latents = kwargs["latents"]
+        x = kwargs["input"]
+        reconstructions = kwargs["recons"]
+
+        log_px_z = self._obs_log_likelihood(reconstructions, x)
+        log_qz_xu = self.posterior.log_pdf(latents, encoding_mean, encoding_logvar.exp())
+        determ = torch.log(1.0 / (latents * (1.0 - latents) + 1e-8)).sum(1)
+        log_qz_xu += determ
+        log_pz = self._prior_log_likelihood(latents)
+
+        kl_loss = (log_pz - log_qz_xu).mean()
+        rec_loss = log_px_z.mean()
+        neg_elbo = -(rec_loss + kl_loss)
+        # neg_elbo = -(rec_loss + kl_loss)
+        #      = -log_pz -log_px_z + log_qz_x
+
+        return {
+            "loss" : neg_elbo,
+            "Reconstruction_Loss" : rec_loss.detach(),
+            "KL_Loss" : kl_loss.detach(),
+        }
+
+    def _obs_log_likelihood(self, reconstructions, x):
+        log_px_z = self.likelihood.log_pdf(
+            reconstructions.flatten(1), x.flatten(1), self.decoder_var
+        )
+        return log_px_z
+
+    def _prior_log_likelihood(self, latents):
+        return self.prior.log_pdf(latents)
+
     def generate(self, x: Tensor, **kwargs) -> Tensor:
         """
         Given an input image x, returns the reconstructed image
@@ -176,19 +236,20 @@ class VanillaVAE(nn.Module):
         """
 
         return self.forward(x)[0]
-    
+
     def calculate_decoder_jacobian(self, z: Tensor):
         """
         Calculates the Jacobian of the decoder w.r.t. the latent code z.
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x D x (C*H*W)]
         """
+
         # Flatten decoder:
         def flatten_decoder(x):
             return self.decode(x).flatten()
-        
+
         return vmap(jacfwd(flatten_decoder))(z)
-    
+
     def learn_latent_mapping(self, sources, samples) -> Tensor:
         latents = self.forward(samples)["latents"]
         latents = latents.detach().cpu().numpy()

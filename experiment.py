@@ -17,17 +17,23 @@ class LightningVAE(L.LightningModule):
         scheduler_gamma: float,
         kld_weight: float,
         n_samples_to_log_in_val: int,
+        decoder_var: float,
         seed: int,
         **kwargs
     ) -> None:
         super(LightningVAE, self).__init__()
+        self.save_hyperparameters()
         self.model = VanillaVAE(
-            in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims
+            in_channels=in_channels,
+            latent_dim=latent_dim,
+            hidden_dims=hidden_dims,
+            decoder_var=decoder_var,
         )
         self.validation_step_outputs = []
-        self.save_hyperparameters()
+        a = 6
 
     def on_fit_start(self) -> None:
+        self.model.transfer_distribution_to_device(self.device)
         L.seed_everything(self.hparams.seed)
 
     def forward(self, input: Tensor, **kwargs) -> Tensor:
@@ -36,7 +42,10 @@ class LightningVAE(L.LightningModule):
     def training_step(self, batch, batch_idx):
         samples, sources = batch
         results = self.forward(samples)
-        train_loss = self.model.loss_function(
+        if results["recons"].isnan().any():
+            print("NAN in recons")
+        results = self.forward(samples)
+        train_loss = self.model.neg_elbo(
             **results,
             M_N=self.hparams.kld_weight,  # al_img.shape[0]/ self.num_train_imgs,
         )
