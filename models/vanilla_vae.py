@@ -10,16 +10,22 @@ import numpy as np
 class VanillaVAE(nn.Module):
 
     def __init__(
-        self, in_channels: int, latent_dim: int, hidden_dims: list, **kwargs
+        self, in_channels: int, latent_dim: int, hidden_dims: list, decoder_var: float, **kwargs
     ) -> None:
         super(VanillaVAE, self).__init__()
-
         self.latent_dim = latent_dim
         self.latent_mapping = None
-
-        modules = []
+        self.decoder_var = decoder_var
+        self.init_nets(in_channels, latent_dim, hidden_dims)
+        
+    def init_nets(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.last_hidden_dim = hidden_dims[-1]
         print("Hidden dims: ", hidden_dims)
+        self.init_encoder(in_channels, latent_dim, hidden_dims)
+        self.init_decoder(in_channels, latent_dim, hidden_dims)
+
+    def init_encoder(self, in_channels: int, latent_dim: int, hidden_dims: list):        
+        modules = []
 
         # Build Encoder
         for h_dim in hidden_dims:
@@ -44,6 +50,7 @@ class VanillaVAE(nn.Module):
         )  # 4 beacuse of the we assume the shape now is hidden_dims[-1] x 2 x 2
         self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
 
+    def init_decoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
         # Build Decoder
         modules = []
 
@@ -78,10 +85,9 @@ class VanillaVAE(nn.Module):
                 output_padding=1,
             ),
             nn.LeakyReLU(),
-            nn.Conv2d(hidden_dims[-1], out_channels=3, kernel_size=3, padding=1),
+            nn.Conv2d(hidden_dims[-1], out_channels=in_channels, kernel_size=3, padding=1),
             nn.Tanh(),
         )
-        self.latent_mapping = None
 
     def encode(self, input: Tensor) -> list[Tensor]:
         """
@@ -155,7 +161,7 @@ class VanillaVAE(nn.Module):
         input = kwargs["input"]
 
         kld_weight = kwargs["M_N"]  # Account for the minibatch samples from the dataset
-        recons_loss = F.mse_loss(recons, input)
+        recons_loss = F.mse_loss(recons, input) / self.decoder_var
 
         kld_loss = torch.mean(
             -0.5 * torch.sum(1 + log_var - mu**2 - log_var.exp(), dim=1), dim=0

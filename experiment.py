@@ -17,12 +17,13 @@ class LightningVAE(L.LightningModule):
         scheduler_gamma: float,
         kld_weight: float,
         n_samples_to_log_in_val: int,
+        decoder_var: float,
         seed: int,
         **kwargs
     ) -> None:
         super(LightningVAE, self).__init__()
         self.model = VanillaVAE(
-            in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims
+            in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims, decoder_var=decoder_var
         )
         self.validation_step_outputs = []
         self.save_hyperparameters()
