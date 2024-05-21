@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch import optim
-from models import VanillaVAE
+from models import VanillaVAE, IMA_Vae
 from torch import tensor as Tensor
 import lightning as L
 from metrics import cima_kl_diagonality, calculate_mcc
@@ -22,7 +22,7 @@ class LightningVAE(L.LightningModule):
         **kwargs
     ) -> None:
         super(LightningVAE, self).__init__()
-        self.model = VanillaVAE(
+        self.model = IMA_Vae(
             in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims, decoder_var=decoder_var
         )
         self.validation_step_outputs = []
@@ -43,8 +43,9 @@ class LightningVAE(L.LightningModule):
         )
 
         # Log
-        self.log("Train/ELBO_Loss", train_loss["loss"], prog_bar=True)
-        self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"])
+        self.log("Train/ELBO_Loss", train_loss["loss"])
+        self.log("Train/KLD_Loss", train_loss["KLD"])
+        self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"], prog_bar=True)
         self._log_mcc("Train", results["latents"], sources)
         self._log_cima("Train", results["latents"])
         return train_loss["loss"]
@@ -64,6 +65,7 @@ class LightningVAE(L.LightningModule):
             val_loss["Reconstruction_Loss"],
             sync_dist=True,
         )
+        self.log("Validation/KLD_Loss", val_loss["KLD"])
         self._log_mcc("Validation", results["latents"], sources)
         self._log_cima("Validation", results["latents"])
         self.validation_step_outputs.append(

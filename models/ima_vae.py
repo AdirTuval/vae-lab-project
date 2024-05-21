@@ -7,7 +7,16 @@ from metrics import calculate_mcc
 import numpy as np
 
 
-class VanillaVAE(nn.Module):
+class View(nn.Module):
+    def __init__(self, size):
+        super(View, self).__init__()
+        self.size = size
+
+    def forward(self, tensor):
+        return tensor.view(self.size)
+
+
+class IMA_Vae(nn.Module):
 
     def __init__(
         self,
@@ -17,7 +26,7 @@ class VanillaVAE(nn.Module):
         decoder_var: float,
         **kwargs
     ) -> None:
-        super(VanillaVAE, self).__init__()
+        super(IMA_Vae, self).__init__()
         self.latent_dim = latent_dim
         self.latent_mapping = None
         self.decoder_var = decoder_var
@@ -26,8 +35,8 @@ class VanillaVAE(nn.Module):
     def init_nets(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.last_hidden_dim = hidden_dims[-1]
         print("Hidden dims: ", hidden_dims)
-        self.init_encoder(in_channels, latent_dim, hidden_dims)
-        self.init_decoder(in_channels, latent_dim, hidden_dims)
+        self.init_encoder2(in_channels, latent_dim, hidden_dims)
+        self.init_decoder2(in_channels, latent_dim, hidden_dims)
 
     def init_encoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
         modules = []
@@ -96,6 +105,42 @@ class VanillaVAE(nn.Module):
             nn.Tanh(),
         )
 
+    def init_encoder2(self, in_channels: int, latent_dim: int, hidden_dims: list):
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_channels, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            View((-1, 32 * 4 * 4)),
+            nn.Linear(32 * 4 * 4, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, latent_dim * 2),
+        )
+
+    def init_decoder2(self, in_channels: int, latent_dim: int, hidden_dims: list):
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 32 * 4 * 4),
+            nn.ReLU(),
+            View((-1, 32, 4, 4)),
+            nn.ConvTranspose2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, 4, 2, 1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, in_channels, 4, 2, 1),
+        )
+
     def encode(self, input: Tensor) -> list[Tensor]:
         """
         Encodes the input by passing through the encoder network
@@ -112,6 +157,23 @@ class VanillaVAE(nn.Module):
         log_var = self.fc_var(result)
 
         return [mu, log_var]
+    
+    def encode2(self, input: Tensor) -> list[Tensor]:
+        """
+        Encodes the input by passing through the encoder network
+        and returns the latent codes.
+        :param input: (Tensor) Input tensor to encoder [N x C x H x W]
+        :return: (Tensor) List of latent codes
+        """
+        result = self.encoder(input)
+
+        # Split the result into mu and var components
+        # of the latent Gaussian distribution
+
+        mu = result[:, : self.latent_dim]
+        log_var = result[:, self.latent_dim:]
+
+        return [mu, log_var]
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -123,12 +185,7 @@ class VanillaVAE(nn.Module):
         if self.latent_mapping is not None:
             print("Using latent mapping")
             z = self.latent_mapping(z)
-        result = self.decoder_input(z)
-        result = result.view(
-            -1, self.last_hidden_dim, 2, 2
-        )  # Going back to the shape of the (N x hidden_dims[-1] x 2 x 2)
-        result = self.decoder(result)
-        result = self.final_layer(result)
+        result = self.decoder(z)
         return result
 
     def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
@@ -144,7 +201,7 @@ class VanillaVAE(nn.Module):
         return eps * std + mu
 
     def forward(self, input: Tensor, **kwargs) -> list[Tensor]:
-        mu, log_var = self.encode(input)
+        mu, log_var = self.encode2(input)
         z = self.reparameterize(mu, log_var)
         return {
             "recons": self.decode(z),
@@ -196,6 +253,7 @@ class VanillaVAE(nn.Module):
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x D x (C*H*W)]
         """
+
         # Flatten decoder:
         def flatten_decoder(x):
             return self.decode(x).flatten()
