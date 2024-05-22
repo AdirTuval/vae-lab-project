@@ -1,16 +1,20 @@
 model:
   seed: 8952
-  in_channels: 3
-  latent_dim: 3
-  hidden_dims: [8, 16, 32, 64]
+  vae:
+    # class_path: models.vanilla_vae.VanillaVAE
+    class_path: models.ima_vae.IMA_Vae
+    init_args:
+      hidden_dims: [8, 16, 32, 64]
+      in_channels: 3
+      latent_dim: null # Computed according to len(data.data_generation_params.factors)
+      decoder_var: 1.0
   learning_rate: 0.0005
   scheduler_gamma: 0.95
   kld_weight: 0.00025
   n_samples_to_log_in_val: 5
-  decoder_var: 1.0
 
 data:
-  generate_data_on_the_fly: False
+  generate_data_on_the_fly: True
   existing_data_path:
     shapes: "/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/shapes.npy"
     sources: "/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/sources.npy"
@@ -28,7 +32,7 @@ data:
       params: [0, 1]
   general_data_params:
     train_batch_size: 64
-    num_workers: 2
+    num_workers: 1
     train_ratio: 0.8
     val_ratio: 0.2
     train_batch_shuffle: True
@@ -38,19 +42,18 @@ trainer:
   devices: auto
   accelerator: gpu
   max_epochs: 200
-  strategy: "ddp"
+  strategy: auto
   num_sanity_val_steps: 2
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
       log_model: all
-      project: "lab_vae"
-      tags: ["find_best_seed","3_factors"]
+      project: "lab_vae_step2"
+      tags: ["find_best_seed","3_factors", "size"]
 
-# early_stopping:
-#   monitor: "Validation/ELBO_Loss"
-#   mode: "min"
-#   patience: 5
-#   verbose: True
+model_checkpoint:
+  monitor: "Validation/Mean_Correlation_Coefficient"
+  mode: "max"
+  verbose: True
   
   

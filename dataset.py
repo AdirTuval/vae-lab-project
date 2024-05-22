@@ -76,6 +76,7 @@ class ShapesDataModule(L.LightningDataModule):
             dataset, [train_len, val_len]
         )
         if self.hparams.general_data_params["save_data"]:
+            print("Saving data...")
             np.save("/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/shapes.npy", self.shapes)
             np.save("/cs/labs/yweiss/adirt/lab_project/vae-lab-project/data/sources.npy", self.sources)
 

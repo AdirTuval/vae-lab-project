@@ -27,6 +27,7 @@ class IMA_Vae(nn.Module):
         **kwargs
     ) -> None:
         super(IMA_Vae, self).__init__()
+        print("IMA VAE init.")
         self.latent_dim = latent_dim
         self.latent_mapping = None
         self.decoder_var = decoder_var
@@ -34,78 +35,10 @@ class IMA_Vae(nn.Module):
 
     def init_nets(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.last_hidden_dim = hidden_dims[-1]
-        print("Hidden dims: ", hidden_dims)
-        self.init_encoder2(in_channels, latent_dim, hidden_dims)
-        self.init_decoder2(in_channels, latent_dim, hidden_dims)
+        self.init_encoder(in_channels, latent_dim, hidden_dims)
+        self.init_decoder(in_channels, latent_dim, hidden_dims)
 
     def init_encoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
-        modules = []
-
-        # Build Encoder
-        for h_dim in hidden_dims:
-            modules.append(
-                nn.Sequential(
-                    nn.Conv2d(
-                        in_channels,
-                        out_channels=h_dim,
-                        kernel_size=3,
-                        stride=2,
-                        padding=1,
-                    ),
-                    nn.BatchNorm2d(h_dim),
-                    nn.LeakyReLU(),
-                )
-            )
-            in_channels = h_dim
-
-        self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(
-            hidden_dims[-1] * 4, latent_dim
-        )  # 4 beacuse of the we assume the shape now is hidden_dims[-1] x 2 x 2
-        self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
-
-    def init_decoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
-        # Build Decoder
-        modules = []
-
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
-
-        hidden_dims = hidden_dims[::-1]
-
-        for i in range(len(hidden_dims) - 1):
-            modules.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(
-                        hidden_dims[i],
-                        hidden_dims[i + 1],
-                        kernel_size=3,
-                        stride=2,
-                        padding=1,
-                        output_padding=1,
-                    ),
-                    nn.LeakyReLU(),
-                )
-            )
-
-        self.decoder = nn.Sequential(*modules)
-
-        self.final_layer = nn.Sequential(
-            nn.ConvTranspose2d(
-                hidden_dims[-1],
-                hidden_dims[-1],
-                kernel_size=3,
-                stride=2,
-                padding=1,
-                output_padding=1,
-            ),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                hidden_dims[-1], out_channels=in_channels, kernel_size=3, padding=1
-            ),
-            nn.Tanh(),
-        )
-
-    def init_encoder2(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels, 32, 4, 2, 1),
             nn.ReLU(),
@@ -123,7 +56,7 @@ class IMA_Vae(nn.Module):
             nn.Linear(256, latent_dim * 2),
         )
 
-    def init_decoder2(self, in_channels: int, latent_dim: int, hidden_dims: list):
+    def init_decoder(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 256),
             nn.ReLU(),
@@ -142,23 +75,6 @@ class IMA_Vae(nn.Module):
         )
 
     def encode(self, input: Tensor) -> list[Tensor]:
-        """
-        Encodes the input by passing through the encoder network
-        and returns the latent codes.
-        :param input: (Tensor) Input tensor to encoder [N x C x H x W]
-        :return: (Tensor) List of latent codes
-        """
-        result = self.encoder(input)
-        result = torch.flatten(result, start_dim=1)
-
-        # Split the result into mu and var components
-        # of the latent Gaussian distribution
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
-
-        return [mu, log_var]
-    
-    def encode2(self, input: Tensor) -> list[Tensor]:
         """
         Encodes the input by passing through the encoder network
         and returns the latent codes.
@@ -201,7 +117,7 @@ class IMA_Vae(nn.Module):
         return eps * std + mu
 
     def forward(self, input: Tensor, **kwargs) -> list[Tensor]:
-        mu, log_var = self.encode2(input)
+        mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
         return {
             "recons": self.decode(z),

@@ -10,23 +10,18 @@ from metrics import cima_kl_diagonality, calculate_mcc
 class LightningVAE(L.LightningModule):
     def __init__(
         self,
-        in_channels: int,
-        latent_dim: int,
-        hidden_dims: list,
         learning_rate: float,
         scheduler_gamma: float,
         kld_weight: float,
+        vae: torch.nn.Module,
         n_samples_to_log_in_val: int,
-        decoder_var: float,
         seed: int,
         **kwargs
     ) -> None:
         super(LightningVAE, self).__init__()
-        self.model = IMA_Vae(
-            in_channels=in_channels, latent_dim=latent_dim, hidden_dims=hidden_dims, decoder_var=decoder_var
-        )
+        self.model = vae
         self.validation_step_outputs = []
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["vae"])
 
     def on_fit_start(self) -> None:
         L.seed_everything(self.hparams.seed)
@@ -45,7 +40,11 @@ class LightningVAE(L.LightningModule):
         # Log
         self.log("Train/ELBO_Loss", train_loss["loss"])
         self.log("Train/KLD_Loss", train_loss["KLD"])
-        self.log("Train/Reconstruction_Loss", train_loss["Reconstruction_Loss"], prog_bar=True)
+        self.log(
+            "Train/Reconstruction_Loss",
+            train_loss["Reconstruction_Loss"],
+            prog_bar=True,
+        )
         self._log_mcc("Train", results["latents"], sources)
         self._log_cima("Train", results["latents"])
         return train_loss["loss"]
@@ -68,10 +67,22 @@ class LightningVAE(L.LightningModule):
         self.log("Validation/KLD_Loss", val_loss["KLD"])
         self._log_mcc("Validation", results["latents"], sources)
         self._log_cima("Validation", results["latents"])
-        self.validation_step_outputs.append(
+        if batch_idx == 0:  # Save only the first batch
+            self._save_validation_step_outputs(results)
+
+    def _save_validation_step_outputs(self, results):
+        self.validation_step_outputs = (
             (
-                results["input"].detach().permute(0, 3, 2, 1).cpu().numpy(),
-                results["recons"].detach().permute(0, 3, 2, 1).cpu().numpy(),
+                results["input"][: self.hparams.n_samples_to_log_in_val]
+                .detach()
+                .permute(0, 3, 2, 1)
+                .cpu()
+                .numpy(),
+                results["recons"][: self.hparams.n_samples_to_log_in_val]
+                .detach()
+                .permute(0, 3, 2, 1)
+                .cpu()
+                .numpy(),
             )
         )
 
@@ -89,12 +100,9 @@ class LightningVAE(L.LightningModule):
         self.log(f"{prefix}/CIMA", cima, sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
-        if len(self.validation_step_outputs) < 8:
-            # Avoid logging on the sanity check
+        if self.trainer.sanity_checking:
             return
-        inputs, recons = self.validation_step_outputs[-1]  # Get last batch
-        inputs = inputs[: self.hparams.n_samples_to_log_in_val]
-        recons = recons[: self.hparams.n_samples_to_log_in_val]
+        inputs, recons = self.validation_step_outputs
         images_to_log = self._get_images_to_log(inputs, recons)
         self._log_images(images_to_log)
 

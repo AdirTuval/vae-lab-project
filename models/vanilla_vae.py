@@ -18,6 +18,7 @@ class VanillaVAE(nn.Module):
         **kwargs
     ) -> None:
         super(VanillaVAE, self).__init__()
+        print(f"Vanilla VAE init, using: {hidden_dims} hidden dims.")
         self.latent_dim = latent_dim
         self.latent_mapping = None
         self.decoder_var = decoder_var
@@ -25,7 +26,6 @@ class VanillaVAE(nn.Module):
 
     def init_nets(self, in_channels: int, latent_dim: int, hidden_dims: list):
         self.last_hidden_dim = hidden_dims[-1]
-        print("Hidden dims: ", hidden_dims)
         self.init_encoder(in_channels, latent_dim, hidden_dims)
         self.init_decoder(in_channels, latent_dim, hidden_dims)
 

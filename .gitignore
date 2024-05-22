@@ -167,3 +167,4 @@ wandb
 data/
 artifacts/
 lab_vae
+lab_vae_step2
