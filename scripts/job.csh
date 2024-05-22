@@ -3,8 +3,10 @@
 #SBATCH --time=1-0
 #SBATCH --mail-type=END
 #SBATCH --mail-user=adir.tuval
-#SBATCH --output=/cs/labs/yweiss/adirt/lab_project/out/ima_vae_250.out
-#SBATCH --gres=gpu:1
+#SBATCH --error=/cs/labs/yweiss/adirt/lab_project/vae-lab-project/out_job_logs/job.%J.err 
+#SBATCH --output=/cs/labs/yweiss/adirt/lab_project/vae-lab-project/out_job_logs/job.%J.out
+#SBATCH --gres=gpu:1,vmem:10g
+#SBATCH --killable
 echo "Running ima_vae_250"
 source /cs/labs/yweiss/adirt/lab_project/vae-lab-project/env/bin/activate.csh
 cd /cs/labs/yweiss/adirt/lab_project/vae-lab-project/
