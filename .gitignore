@@ -169,3 +169,4 @@ artifacts/
 lab_vae
 lab_vae_step2
 out_job_logs
+*.out
