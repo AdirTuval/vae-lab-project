@@ -3,6 +3,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from dataset import ShapesDataModule
 from experiment import LightningVAE
 import torch
+import os
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -21,7 +22,10 @@ class MyLightningCLI(LightningCLI):
             return sources.shape[-1]
         
         parser.link_arguments("data", "model.vae.init_args.latent_dim", data_params_to_latent_dim)
-
+    def before_instantiate_classes(self) -> None:
+        os.environ["WANDB_CACHE_DIR"] = "/cs/labs/yweiss/adirt/lab_project/wandb/"
+        print("WANDB_CACHE_DIR", os.environ["WANDB_CACHE_DIR"])
+        
 def cli_main():
     cli = MyLightningCLI(
         LightningVAE,
